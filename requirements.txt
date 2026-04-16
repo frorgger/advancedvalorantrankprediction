@@ -1,2 +1,5 @@
 ultralytics
 streamlit
+cv2
+numpy
+torch
