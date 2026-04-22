@@ -5,15 +5,13 @@ import tempfile
 import math
 from ultralytics import YOLO
 
-# -----------------------------
+
 # Page setup
-# -----------------------------
 st.set_page_config(page_title="Valorant Rank Predictor", layout="wide")
 st.title("Advanced Valorant Rank Prediction")
 
-# -----------------------------
+
 # Session state
-# -----------------------------
 if "running" not in st.session_state:
     st.session_state.running = False
 
@@ -23,9 +21,8 @@ if "tracked_objects" not in st.session_state:
 if "reaction_times" not in st.session_state:
     st.session_state.reaction_times = []
 
-# -----------------------------
+
 # Sidebar controls
-# -----------------------------
 st.sidebar.header("Controls")
 
 source_type = st.sidebar.radio("Input Source", ["Webcam", "Upload Video"])
@@ -36,9 +33,6 @@ center_radius = 20
 start = st.sidebar.button("Start")
 stop = st.sidebar.button("Stop / Reset")
 
-# -----------------------------
-# Button logic
-# -----------------------------
 if start:
     st.session_state.running = True
     st.session_state.tracked_objects = {}
@@ -50,9 +44,7 @@ if stop:
     st.session_state.reaction_times = []
 
 
-# -----------------------------
-# Model loader
-# -----------------------------
+# Load Model
 @st.cache_resource
 def load_model():
     return YOLO("runs/detect/valorant_reaction_v220/weights/best.pt")
@@ -60,9 +52,7 @@ def load_model():
 
 model = load_model()
 
-# -----------------------------
 # Input source setup
-# -----------------------------
 cap = None
 video_ready = False
 
@@ -89,9 +79,8 @@ else:
         cap = cv2.VideoCapture(tfile.name)
         video_ready = cap.isOpened()
 
-# -----------------------------
+
 # Layout
-# -----------------------------
 col1, col2, col3 = st.columns([3, 1, 1])
 
 with col1:
@@ -106,10 +95,7 @@ with col3:
     rank_placeholder = st.empty()
 
 
-# -----------------------------
-# Rank Estimation
-# -----------------------------
-
+# Rank Estimation (reaction time averaging)
 def predict_rank(avg_reaction_time):
     if avg_reaction_time <= 0.180:
         return "Immortal - Radiant"
@@ -121,9 +107,7 @@ def predict_rank(avg_reaction_time):
         return "Iron - Silver"
 
 
-# -----------------------------
 # Main processing loop
-# -----------------------------
 if st.session_state.running:
     if not video_ready:
         st.error("No valid video source available. Choose webcam or upload a video.")
@@ -150,12 +134,8 @@ if st.session_state.running:
 
             active_ids = set()
 
-            # IMPORTANT:
-            # Use raw frame copy instead of results[0].plot()
-            # so only custom annotations are shown.
             annotated_frame = frame.copy()
 
-            # Draw center zone
             cv2.circle(annotated_frame, screen_center, center_radius, (255, 0, 0), 2)
             cv2.circle(annotated_frame, screen_center, 4, (255, 0, 0), -1)
 
@@ -197,7 +177,6 @@ if st.session_state.running:
                         2
                     )
 
-                    # Draw only ID + visible duration
                     cv2.putText(
                         annotated_frame,
                         f"ID {track_id} | {visible_duration:.2f}s",
@@ -208,7 +187,6 @@ if st.session_state.running:
                         2,
                     )
 
-                    # Draw box center
                     cv2.circle(annotated_frame, (cx, cy), 4, (0, 255, 255), -1)
 
                     # Log reaction when enemy first enters center zone
@@ -219,7 +197,6 @@ if st.session_state.running:
                         if reaction_time >= 0.05:
                             st.session_state.reaction_times.append(reaction_time)
 
-            # Remove stale tracks
             lost_ids = []
             for track_id, obj in st.session_state.tracked_objects.items():
                 if track_id not in active_ids:
@@ -230,7 +207,6 @@ if st.session_state.running:
             for track_id in lost_ids:
                 del st.session_state.tracked_objects[track_id]
 
-            # Update frame
             frame_placeholder.image(annotated_frame, channels="BGR")
 
             # Running average
@@ -247,9 +223,8 @@ if st.session_state.running:
 
         cap.release()
 
-# -----------------------------
+
 # Show average outside loop too
-# -----------------------------
 if st.session_state.reaction_times:
     running_avg = (
             sum(st.session_state.reaction_times)
